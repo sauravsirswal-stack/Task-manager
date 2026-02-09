@@ -21,4 +21,11 @@ setUpAndStartServer()
 process.on("unhandledRejection",(error)=>{
     console.log("UNHANDLED REJECTION!");
     console.log(error.name, error.message);
+    process.exit(1);
+})
+
+process.on("uncaughtException",(error)=>{
+    console.log("UNCAUGHT EXCEPTION!");
+    console.log(error.name, error.message);
+    process.exit(1);
 })

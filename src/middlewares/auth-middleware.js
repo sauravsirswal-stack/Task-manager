@@ -20,7 +20,6 @@ const isAuthenticated = async (req, res, next) => {
         req.user = response.id;
         next();
     } catch (error) {
-        console.log(error)
         if(error.name == "JsonWebTokenError") {
             ErrorResponse.error = error.message;
             return res.status(StatusCodes.UNAUTHORIZED).json(ErrorResponse);

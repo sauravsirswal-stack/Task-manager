@@ -2,8 +2,6 @@ const bcrypt = require("bcrypt")
 const jwt = require("jsonwebtoken")
 
 const { JWT_SECRET } = require("../../config/server.config")
-// const { AppError } = require("../utils/common")
-// const { StatusCodes } = require("http-status-codes")
 
 function checkPassword(password, hashPassword){
     try {

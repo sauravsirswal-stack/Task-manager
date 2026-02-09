@@ -1,6 +1,7 @@
 const { StatusCodes } = require("http-status-codes")
 const { TaskRepository } = require("../repository")
 const { ProjectRepository } = require("../repository")
+const { Types } = require("mongoose");
 
 const taskRepository = new TaskRepository()
 const projectRepository = new ProjectRepository()
@@ -98,9 +99,20 @@ async function assignTask({ requesterId, taskId, userId }) {
         if (!task) {
             throw new AppError("Task not found", StatusCodes.NOT_FOUND)
         }
+        const project = await projectRepository.findById(task.projectId)
+        if (!project) {
+            throw new AppError("Project not found", StatusCodes.NOT_FOUND)
+        }
         if (task.createdBy.toString() !== requesterId.toString()) {
             throw new AppError("You are not authorized to assign this task", StatusCodes.FORBIDDEN)
         }
+        const alreadyAProjectMember = project.members.some(
+            member => member.toString() === userId.toString()
+        )
+        if (!alreadyAProjectMember) {
+            throw new AppError("User is not a member of this project", StatusCodes.BAD_REQUEST)
+        }
+
         const alreadyAssigned = task.assignedTo.some(
             a => a.userId.toString() === userId.toString()
         )
@@ -126,8 +138,18 @@ async function unassignTask({ requesterId, taskId, userId }) {
         if (!task) {
             throw new AppError("Task not found", StatusCodes.NOT_FOUND)
         }
+        const project = await projectRepository.findById(task.projectId)
+        if (!project) {
+            throw new AppError("Project not found", StatusCodes.NOT_FOUND)
+        }
         if (task.createdBy.toString() !== requesterId.toString()) {
             throw new AppError("You are not authorized to unassign this task", StatusCodes.FORBIDDEN)
+        }
+        const alreadyAProjectMember = project.members.some(
+            member => member.toString() === userId.toString()
+        )
+        if (!alreadyAProjectMember) {
+            throw new AppError("User is not a member of this project", StatusCodes.BAD_REQUEST)
         }
         const alreadyAssigned = task.assignedTo.some(
             a => a.userId.toString() === userId.toString()
@@ -148,20 +170,25 @@ async function unassignTask({ requesterId, taskId, userId }) {
     }
 }
 
-const { Types } = require("mongoose");
-
-async function getAllTasks({ query }) {
-    const task = await taskRepository.getTaskByOwnerId(query.userId)
-    if(!task){
-        throw new AppError("You are not authorized to get tasks", StatusCodes.FORBIDDEN)
+async function getAllTasks({ requesterId,query }) {
+    try {
+    const tasks = await taskRepository.getTasksByOwnerId(requesterId)
+    if(!tasks){
+        throw new AppError("You are not authorized to get tasks", StatusCodes.BAD_REQUEST)
     }
-
+    if(query.assignedTo){
+        const userPresentInTask = tasks.filter(task => task.assignedTo.some(a => a.userId.toString() === query.assignedTo.toString()))
+        if(userPresentInTask.length === 0){
+            throw new AppError("The user is not assigned the task or not present in the task", StatusCodes.BAD_REQUEST)
+        }
+    }
     let customFilter = {}
 
     let page = Number(query.page) || 1
     let limit = 10
     let skip = (page - 1) * limit
 
+    customFilter.createdBy = requesterId
     if (query.status) {
         customFilter.status = query.status
     }
@@ -193,9 +220,8 @@ async function getAllTasks({ query }) {
     if (query.updatedAt) {
         customFilter.updatedAt = new Date(query.updatedAt)
     }
-
-    try {
-        return await taskRepository.getAllTasks(customFilter, skip, limit)
+    console.log(customFilter)
+    return await taskRepository.getAllTasks(customFilter, skip, limit)
     } catch (error) {
         if (error instanceof AppError) throw error;
         throw new AppError("Something went wrong", StatusCodes.INTERNAL_SERVER_ERROR)

@@ -5,8 +5,8 @@ class TaskRepository extends CrudRepository {
     constructor() {
         super(Task)
     }
-    async getTaskByOwnerId(userId) {
-        const task = await Task.find({createdBy : userId})
+    async getTasksByOwnerId(requesterId) {
+        const task = await Task.find({createdBy : requesterId})
         return task
     }
 
